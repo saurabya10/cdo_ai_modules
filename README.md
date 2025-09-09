@@ -50,12 +50,61 @@ cdo_ai_modules/
 
 ## ⚙️ Setup
 
-### 1. Install Dependencies
+### 1. Install Python Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Set Environment Variables
+### 2. Install SQLite (Required for Database)
+
+> **Note:** Python includes the `sqlite3` module by default, but the SQLite binary may not be available on all systems (especially Windows). The application will work with Python's built-in module, but having the SQLite command-line tool is useful for database inspection and troubleshooting.
+
+**On Windows:**
+SQLite command-line tool is not included by default. Choose one of these options:
+
+**Option A: Using Conda (Recommended)**
+```bash
+# If you have Anaconda/Miniconda installed
+conda install sqlite
+```
+
+**Option B: Download SQLite Binary**
+1. Download SQLite tools from: https://www.sqlite.org/download.html
+2. Extract to a folder (e.g., `C:\sqlite`)
+3. Add the folder to your system PATH
+
+**Option C: Using Windows Subsystem for Linux (WSL)**
+```bash
+# Install WSL first, then in WSL terminal:
+sudo apt update
+sudo apt install sqlite3
+```
+
+**On macOS:**
+```bash
+# SQLite comes pre-installed, but you can update via Homebrew:
+brew install sqlite
+```
+
+**On Linux (Ubuntu/Debian):**
+```bash
+sudo apt update
+sudo apt install sqlite3
+```
+
+**On Linux (CentOS/RHEL):**
+```bash
+sudo yum install sqlite
+# or for newer versions:
+sudo dnf install sqlite
+```
+
+**Verify Installation:**
+```bash
+sqlite3 --version
+```
+
+### 3. Set Environment Variables
 
 **Option A: Create a `.env` file (Recommended):**
 ```bash
@@ -86,7 +135,17 @@ export CLIENT_SECRET=your_azure_client_secret
 export APP_KEY=your_app_key
 ```
 
-### 3. Run the Application
+### 4. Verify Setup (Optional)
+Test that everything is working:
+```bash
+# Quick test - should show SQLite version
+python3 -c "import sqlite3; print('SQLite version:', sqlite3.sqlite_version)"
+
+# Run tests to verify functionality
+python3 run_tests.py
+```
+
+### 5. Run the Application
 ```bash
 python3 main.py
 ```
@@ -169,6 +228,52 @@ python3 -m unittest tests.test_config
 python3 -m unittest tests.test_chat_history
 python3 -m unittest tests.test_intent_analyzer
 ```
+
+## 🔧 Troubleshooting
+
+### SQLite Issues
+
+**Error: `sqlite3.OperationalError: no such table`**
+- **Solution**: Delete the database file and restart the application:
+```bash
+rm chat_history.db
+python3 main.py
+```
+
+**Error: `sqlite3.OperationalError: database is locked`**
+- **Solution**: Close any SQLite browser tools and restart the application
+- Or delete lock files:
+```bash
+rm chat_history.db-wal chat_history.db-shm
+```
+
+**Windows: `sqlite3` command not found**
+- **Solution**: Follow the SQLite installation steps above for Windows
+- **Alternative**: Use Python to inspect the database:
+```bash
+python3 -c "import sqlite3; conn = sqlite3.connect('chat_history.db'); print(conn.execute('SELECT * FROM conversations LIMIT 5').fetchall())"
+```
+
+### Authentication Issues
+
+**Error: `401 Unauthorized`**
+- **Solution**: Check your `.env` file credentials:
+```bash
+# Verify your .env file has correct values
+cat .env
+```
+- Ensure `CLIENT_ID`, `CLIENT_SECRET`, and `APP_KEY` are correct
+- Contact your admin for valid credentials
+
+**Error: `Failed to get API key`**
+- **Solution**: Verify network connectivity and credentials
+- Check if your organization's firewall allows access to the LLM endpoint
+
+### Configuration Issues
+
+**Error: `Missing required configuration`**
+- **Solution**: Ensure `.env` file exists and contains required variables
+- Copy from template: `cp env.example .env`
 
 ## 🔧 Extending the System
 
