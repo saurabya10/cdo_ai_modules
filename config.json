@@ -1,0 +1,18 @@
+{
+  "database": {
+    "path": "chat_history.db",
+    "max_conversations": 25
+  },
+  "llm": {
+    "endpoint": "https://chat-ai.cisco.com",
+    "model": "gpt-4o",
+    "api_version": "2025-04-01-preview",
+    "timeout": 30,
+    "max_retries": 3,
+    "temperature": 0.1,
+    "max_tokens": 200,
+    "client_id": "demo",
+    "client_secret": "demo",
+    "app_key": "demo"
+  }
+}
