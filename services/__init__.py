@@ -1,5 +1,5 @@
 """Services for intent analysis system"""
 
-from .intent_analyzer import IntentAnalyzer
+from .embedding_service import EmbeddingService
 
-__all__ = ['IntentAnalyzer']
+__all__ = ['EmbeddingService']

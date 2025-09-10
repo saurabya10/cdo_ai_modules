@@ -1,0 +1,8 @@
+Troubleshooting SAL logs not comming
+    - Check SAL is enabled or not.
+    - Check SAL resources are available.
+    - Check events statistics
+
+Troubleshooting FTD for logs
+  - Fetch connector logs
+  - Check Connector statistics

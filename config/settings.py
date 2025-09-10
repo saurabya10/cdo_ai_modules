@@ -34,17 +34,28 @@ class LLMConfig:
 
 
 @dataclass
+class EmbeddingConfig:
+    """Embedding configuration"""
+    persist_directory: str = "embeddings"
+    collection_name: str = "troubleshooting_collection"
+    model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    source_directory: str = "pdf_files"
+
+
+@dataclass
 class Config:
     """Main configuration class"""
     database: DatabaseConfig
     llm: LLMConfig
+    embedding: EmbeddingConfig
     
     @classmethod
     def from_dict(cls, data: dict) -> 'Config':
         """Create config from dictionary"""
         return cls(
             database=DatabaseConfig(**data.get('database', {})),
-            llm=LLMConfig(**data.get('llm', {}))
+            llm=LLMConfig(**data.get('llm', {})),
+            embedding=EmbeddingConfig(**data.get('embedding', {}))
         )
     
     def to_dict(self) -> dict:
@@ -62,6 +73,12 @@ class Config:
                 'max_retries': self.llm.max_retries,
                 'temperature': self.llm.temperature,
                 'max_tokens': self.llm.max_tokens
+            },
+            'embedding': {
+                'persist_directory': self.embedding.persist_directory,
+                'collection_name': self.embedding.collection_name,
+                'model': self.embedding.model,
+                'source_directory': self.embedding.source_directory
             }
         }
 
@@ -84,6 +101,12 @@ def load_config(config_file: str = "config.json") -> Config:
             'max_retries': 3,
             'temperature': 0.1,
             'max_tokens': 200
+        },
+        'embedding': {
+            'persist_directory': 'embeddings',
+            'collection_name': 'troubleshooting_collection',
+            'model': 'sentence-transformers/all-MiniLM-L6-v2',
+            'source_directory': 'documents'
         }
     }
     

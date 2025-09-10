@@ -8,12 +8,12 @@ import logging
 import sys
 from pathlib import Path
 
-# Add the current directory to Python path
-sys.path.insert(0, str(Path(__file__).parent))
-
 from config import load_config
-from services import IntentAnalyzer
+from agents.intent_agent import IntentAgent
+from agents.rag_agent import RAGAgent
+from services.embedding_service import EmbeddingService
 from core import ChatHistory
+from graph import AgentGraph
 
 # Setup logging
 logging.basicConfig(
@@ -28,14 +28,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class IntentAnalysisApp:
-    """Main application for intent analysis"""
+class AIAgentApp:
+    """Main application for the AI Agent"""
     
     def __init__(self):
         """Initialize the application"""
         self.config = None
-        self.intent_analyzer = None
+        self.intent_agent = None
+        self.rag_agent = None
         self.chat_history = None
+        self.embedding_service = None
+        self.agent_graph = None
         self._initialize()
     
     def _initialize(self):
@@ -52,9 +55,23 @@ class IntentAnalysisApp:
             )
             logger.info(f"Chat history initialized (max conversations: {self.config.database.max_conversations})")
             
-            # Initialize intent analyzer
-            self.intent_analyzer = IntentAnalyzer(self.config)
-            logger.info("Intent analyzer initialized")
+            # Initialize intent agent
+            self.intent_agent = IntentAgent(self.config)
+            logger.info("Intent agent initialized")
+
+            # Initialize EmbeddingService and create embeddings
+            self.embedding_service = EmbeddingService(self.config)
+            self.embedding_service.create_and_store_embeddings()
+            logger.info("Embedding service initialized and embeddings created")
+            
+            # Initialize RAG agent
+            retriever = self.embedding_service.get_retriever()
+            self.rag_agent = RAGAgent(self.config, retriever)
+            logger.info("RAG agent initialized")
+
+            # Initialize AgentGraph
+            self.agent_graph = AgentGraph(self.intent_agent, self.rag_agent)
+            logger.info("Agent graph initialized")
             
             # Validate LLM credentials
             self._validate_credentials()
@@ -84,7 +101,7 @@ class IntentAnalysisApp:
     def display_welcome(self):
         """Display welcome message and system info"""
         print("\n" + "="*60)
-        print("🧠 INTENT ANALYSIS SYSTEM")
+        print("🧠 AI AGENT SYSTEM")
         print("="*60)
         print(f"📊 Max conversations stored: {self.config.database.max_conversations}")
         print(f"💾 Database: {self.config.database.path}")
@@ -102,7 +119,7 @@ class IntentAnalysisApp:
             print("📝 No previous conversations found")
         
         print("\n💡 Available intents:")
-        for intent, description in self.intent_analyzer.get_available_intents().items():
+        for intent, description in self.intent_agent.get_available_intents().items():
             print(f"   • {intent}: {description}")
         
         print("\n" + "="*60)
@@ -110,28 +127,27 @@ class IntentAnalysisApp:
         print("="*60)
     
     async def process_user_input(self, user_input: str) -> dict:
-        """Process user input and return analysis result"""
+        """Process user input using the agent graph."""
         try:
-            # Analyze intent
-            logger.info(f"Processing user input: {user_input[:50]}...")
-            result = await self.intent_analyzer.analyze_intent(user_input)
+            logger.info(f"Processing user input with AgentGraph: {user_input[:50]}...")
+            result = await self.agent_graph.invoke(user_input)
             
-            if result['success']:
+            intent_result = result.get('intent', {})
+            if intent_result.get('success'):
                 # Store in chat history
                 conversation_id = self.chat_history.add_conversation(
                     user_input=user_input,
-                    intent_action=result['action'],
-                    intent_confidence=result['confidence'],
-                    intent_reasoning=result['reasoning']
+                    intent_action=intent_result.get('action'),
+                    intent_confidence=intent_result.get('confidence'),
+                    intent_reasoning=intent_result.get('reasoning')
                 )
-                
                 result['conversation_id'] = conversation_id
-                logger.info(f"Stored conversation {conversation_id} with intent: {result['action']}")
+                logger.info(f"Stored conversation {conversation_id} with intent: {intent_result.get('action')}")
             
             return result
             
         except Exception as e:
-            logger.error(f"Error processing user input: {e}")
+            logger.error(f"Error processing user input with AgentGraph: {e}")
             return {
                 'success': False,
                 'error': str(e),
@@ -141,11 +157,12 @@ class IntentAnalysisApp:
             }
     
     def display_result(self, result: dict):
-        """Display the analysis result"""
-        if result['success']:
-            confidence = result['confidence']
-            action = result['action']
-            reasoning = result['reasoning']
+        """Display the analysis result from the agent graph."""
+        intent_result = result.get('intent', {})
+        if intent_result.get('success'):
+            confidence = intent_result.get('confidence', 0.0)
+            action = intent_result.get('action', 'general_chat')
+            reasoning = intent_result.get('reasoning', 'N/A')
             
             # Color coding based on confidence
             if confidence >= 0.8:
@@ -162,8 +179,12 @@ class IntentAnalysisApp:
             
             if 'conversation_id' in result:
                 print(f"   💾 Stored as conversation #{result['conversation_id']}")
-        else:
-            print(f"\n❌ Analysis failed: {result.get('error', 'Unknown error')}")
+        
+        final_response = result.get('final_response')
+        if final_response:
+            print(f"\nAssistant: {final_response}")
+        elif not intent_result.get('success'):
+            print(f"\n❌ Analysis failed: {intent_result.get('error', 'Unknown error')}")
     
     def show_recent_history(self, limit: int = 5):
         """Show recent conversation history"""
@@ -242,7 +263,7 @@ class IntentAnalysisApp:
 async def main():
     """Main entry point"""
     try:
-        app = IntentAnalysisApp()
+        app = AIAgentApp()
         await app.run()
     except KeyboardInterrupt:
         print("\n👋 Application interrupted by user")
